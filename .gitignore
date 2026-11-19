@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+chroma_db/
+.DS_Store
+Avira_memory.json
+Avira_audit.log
+*.tar.gz

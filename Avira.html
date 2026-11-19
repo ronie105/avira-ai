@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Avira.ai — Autonomous AI Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+:root{
+  --bg:#0D0D12;
+  --surface:#13131A;
+  --card:#1A1A24;
+  --border:#2A2A38;
+  --border-bright:#3D3D56;
+  --purple:#8B7FE8;
+  --purple-dim:#5C5490;
+  --purple-glow:rgba(139,127,232,0.15);
+  --teal:#3ECFB2;
+  --teal-dim:#1A6B5C;
+  --amber:#F0A500;
+  --red:#E85555;
+  --green:#4CC97A;
+  --blue:#4A9EF0;
+  --text:#E8E8F0;
+  --text-dim:#8888A8;
+  --text-faint:#44445A;
+  --font:'Space Grotesk',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6}
+
+/* ── Layout ── */
+#app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--border);z-index:10}
+#sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#main{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Topbar ── */
+.logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--purple),var(--teal));display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;color:#fff;flex-shrink:0}
+.logo-text{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.logo-sub{font-size:11px;color:var(--text-dim);margin-left:2px}
+#status-bar{margin-left:auto;display:flex;align-items:center;gap:16px}
+.status-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px 10px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-faint);flex-shrink:0}
+.dot.online{background:var(--teal);box-shadow:0 0 6px var(--teal)}
+#model-badge{font-family:var(--mono);font-size:11px;color:var(--purple);background:var(--purple-glow);border:1px solid var(--purple-dim);border-radius:4px;padding:3px 8px}
+
+/* ── Sidebar tabs ── */
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;padding:10px 0;font-size:12px;font-weight:500;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--purple);border-bottom-color:var(--purple)}
+.tab-btn:hover:not(.active){color:var(--text)}
+.tab-panel{flex:1;overflow-y:auto;padding:12px}
+.tab-panel.hidden{display:none}
+
+/* ── Memory panel ── */
+.mem-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mem-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
+.mem-clear{font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;opacity:.6}
+.mem-clear:hover{opacity:1}
+.mem-empty{font-size:12px;color:var(--text-faint);text-align:center;padding:20px 0}
+.mem-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;position:relative}
+.mem-fact{font-size:12px;color:var(--text);line-height:1.4;padding-right:20px}
+.mem-meta{font-size:10px;color:var(--text-faint);margin-top:3px;font-family:var(--mono)}
+.mem-src{color:var(--teal-dim)}
+.mem-del{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:13px;line-height:1}
+.mem-del:hover{color:var(--red)}
+
+/* ── History panel ── */
+.hist-item{padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-dim)}
+.hist-role{font-family:var(--mono);font-size:10px;color:var(--purple-dim);text-transform:uppercase;margin-bottom:2px}
+.hist-clear-btn{width:100%;margin-top:10px;padding:7px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;cursor:pointer}
+.hist-clear-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── Chat area ── */
+#chat-wrap{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0}
+#chat-wrap::-webkit-scrollbar{width:4px}
+#chat-wrap::-webkit-scrollbar-track{background:transparent}
+#chat-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── Messages ── */
+.msg-group{display:flex;flex-direction:column;gap:4px;margin-bottom:20px}
+.msg-group.user{align-items:flex-end}
+.msg-group.bot{align-items:flex-start}
+.msg-meta{font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.msg-avatar{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.avatar-m{background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff}
+.avatar-u{background:var(--card);border:1px solid var(--border);color:var(--text-dim)}
+.bubble{max-width:72%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.7;word-break:break-word}
+.bubble.user{background:var(--purple);color:#fff;border-bottom-right-radius:3px}
+.bubble.bot{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:3px;color:var(--text)}
+.bubble.bot h1,.bubble.bot h2,.bubble.bot h3{font-size:14px;font-weight:600;color:var(--purple);margin:10px 0 4px}
+.bubble.bot strong{color:var(--text);font-weight:600}
+.bubble.bot code{font-family:var(--mono);font-size:12px;background:var(--bg);color:var(--teal);padding:1px 5px;border-radius:3px}
+.bubble.bot pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;margin:8px 0;overflow-x:auto}
+.bubble.bot pre code{background:none;padding:0;color:var(--text)}
+.bubble.bot ul,.bubble.bot ol{padding-left:18px;margin:6px 0}
+.bubble.bot li{margin-bottom:3px}
+.bubble.bot p{margin-bottom:6px}
+.bubble.bot p:last-child{margin-bottom:0}
+.bubble.blocked{border-color:var(--red);background:#1C1010}
+.bubble.learned{border-color:var(--amber);background:#1C1800}
+
+/* ── ReAct trace ── */
+.react-trace{margin-bottom:8px;max-width:80%}
+.trace-step{background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;overflow:hidden}
+.trace-header{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;user-select:none}
+.trace-header:hover{background:var(--card)}
+.trace-step-num{font-family:var(--mono);font-size:10px;color:var(--text-faint);min-width:20px}
+.trace-icon{font-size:13px}
+.trace-label{font-size:12px;font-weight:500;color:var(--text-dim);flex:1}
+.trace-toggle{font-size:10px;color:var(--text-faint);margin-left:auto}
+.trace-body{display:none;padding:6px 10px 10px;border-top:1px solid var(--border)}
+.trace-body.open{display:block}
+.trace-row{margin-bottom:4px}
+.trace-key{font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;margin-bottom:1px}
+.trace-val{font-size:12px;color:var(--text-dim);font-family:var(--mono);white-space:pre-wrap;word-break:break-word}
+.tool-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;font-family:var(--mono);font-weight:500}
+.tool-search{background:rgba(74,158,240,.15);color:var(--blue);border:1px solid rgba(74,158,240,.3)}
+.tool-calculate{background:rgba(76,201,122,.15);color:var(--green);border:1px solid rgba(76,201,122,.3)}
+.tool-remember{background:rgba(240,165,0,.15);color:var(--amber);border:1px solid rgba(240,165,0,.3)}
+.tool-recall{background:rgba(62,207,178,.15);color:var(--teal);border:1px solid rgba(62,207,178,.3)}
+.tool-analyse{background:rgba(139,127,232,.15);color:var(--purple);border:1px solid rgba(139,127,232,.3)}
+.tool-finish{background:rgba(76,201,122,.15);color:var(--green);border:1px solid rgba(76,201,122,.3)}
+.tool-default{background:var(--card);color:var(--text-dim);border:1px solid var(--border)}
+
+/* ── Typing indicator ── */
+.typing-dots{display:flex;gap:4px;align-items:center;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;border-bottom-left-radius:3px;width:fit-content}
+.typing-dots span{width:6px;height:6px;background:var(--purple-dim);border-radius:50%;animation:pulse 1.2s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+/* ── Welcome ── */
+.welcome{text-align:center;padding:40px 20px;max-width:500px;margin:auto}
+.welcome-logo{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--purple),var(--teal));display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;box-shadow:0 0 40px var(--purple-glow)}
+.welcome h1{font-size:24px;font-weight:600;margin-bottom:8px}
+.welcome p{color:var(--text-dim);font-size:13px;margin-bottom:24px}
+.welcome-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{padding:7px 14px;background:var(--card);border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;color:var(--text-dim);transition:all .2s}
+.chip:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-glow)}
+
+/* ── Input bar ── */
+#input-area{padding:16px 24px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.input-wrap{display:flex;gap:10px;align-items:flex-end;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;transition:border-color .2s}
+.input-wrap:focus-within{border-color:var(--purple-dim)}
+#msg-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:14px;resize:none;max-height:120px;line-height:1.5}
+#msg-input::placeholder{color:var(--text-faint)}
+#send-btn{width:36px;height:36px;border-radius:8px;background:var(--purple);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+#send-btn:hover{background:#7A6ED6;transform:scale(1.05)}
+#send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+#send-btn svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.input-hint{font-size:11px;color:var(--text-faint);margin-top:6px;text-align:center}
+
+/* ── Scrollbar ── */
+.tab-panel::-webkit-scrollbar{width:3px}
+.tab-panel::-webkit-scrollbar-thumb{background:var(--border)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="logo-mark">M</div>
+    <div>
+      <span class="logo-text">Avira.ai</span>
+      <span class="logo-sub">Autonomous AI Agent</span>
+    </div>
+    <div id="status-bar">
+      <div class="status-pill">
+        <div class="dot" id="api-dot"></div>
+        <span id="api-status">Connecting…</span>
+      </div>
+      <div id="model-badge">llama-3.3-70b</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-tabs">
+      <button class="tab-btn active" onclick="switchTab('memory')">📚 Memory</button>
+      <button class="tab-btn" onclick="switchTab('history')">🕓 History</button>
+    </div>
+    <div class="tab-panel" id="tab-memory">
+      <div class="mem-header">
+        <span class="mem-title">Learned Facts</span>
+        <button class="mem-clear" onclick="clearMemory()">Clear all</button>
+      </div>
+      <div id="mem-list"><div class="mem-empty">Nothing learned yet.<br/>Tell me something!</div></div>
+    </div>
+    <div class="tab-panel hidden" id="tab-history">
+      <div id="hist-list"><div class="mem-empty">No conversation yet.</div></div>
+      <button class="hist-clear-btn" onclick="clearHistory()">🗑 Clear history</button>
+    </div>
+  </div>
+
+  <!-- Main chat -->
+  <div id="main">
+    <div id="chat-wrap">
+      <div class="welcome" id="welcome">
+        <div class="welcome-logo">✦</div>
+        <h1>Namaste, I'm Avira</h1>
+        <p>Your autonomous AI agent — I search the web, calculate, analyse data,<br/>and learn from what you tell me. Watch me reason step by step.</p>
+        <div class="welcome-chips">
+          <div class="chip" onclick="sendChip(this)">What's happening in India today?</div>
+          <div class="chip" onclick="sendChip(this)">Calculate compound interest on ₹50,000 at 8% for 5 years</div>
+          <div class="chip" onclick="sendChip(this)">Compare India and China GDP</div>
+          <div class="chip" onclick="sendChip(this)">My name is Ronnie and I am a CS student</div>
+          <div class="chip" onclick="sendChip(this)">Analyse pros and cons of AI in education</div>
+          <div class="chip" onclick="sendChip(this)">What do you know about me?</div>
+        </div>
+      </div>
+    </div>
+    <div id="input-area">
+      <div class="input-wrap">
+        <textarea id="msg-input" rows="1" placeholder="Ask anything — Avira reasons autonomously…"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button id="send-btn" onclick="sendMessage()" title="Send">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="input-hint">Enter to send · Shift+Enter for new line · Avira reasons autonomously using ReAct</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let isThinking = false;
+
+// ── Tool display config ────────────────────────────────────────────────────
+const TOOLS = {
+  search:    { icon:'🔍', label:'Web Search',   cls:'tool-search'    },
+  calculate: { icon:'🧮', label:'Calculator',   cls:'tool-calculate' },
+  remember:  { icon:'📝', label:'Remember',     cls:'tool-remember'  },
+  recall:    { icon:'🧠', label:'Recall',       cls:'tool-recall'    },
+  analyse:   { icon:'📊', label:'Analyse',      cls:'tool-analyse'   },
+  finish:    { icon:'✅', label:'Final Answer', cls:'tool-finish'    },
+};
+
+// ── Status check ───────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch(`${API}/status`);
+    const d = await r.json();
+    const dot = document.getElementById('api-dot');
+    const txt = document.getElementById('api-status');
+    if (d.api_key_set) {
+      dot.classList.add('online');
+      txt.textContent = 'Online';
+    } else {
+      txt.textContent = 'No API key';
+    }
+    loadMemory();
+    loadHistory();
+  } catch {
+    document.getElementById('api-status').textContent = 'Server offline';
+  }
+}
+
+// ── Memory ─────────────────────────────────────────────────────────────────
+async function loadMemory() {
+  try {
+    const r = await fetch(`${API}/memory`);
+    const d = await r.json();
+    renderMemory(d.facts);
+  } catch {}
+}
+
+function renderMemory(facts) {
+  const el = document.getElementById('mem-list');
+  if (!facts || !facts.length) {
+    el.innerHTML = '<div class="mem-empty">Nothing learned yet.<br/>Tell me something!</div>';
+    return;
+  }
+  el.innerHTML = facts.map((f, i) => `
+    <div class="mem-item">
+      <div class="mem-fact">${esc(f.fact)}</div>
+      <div class="mem-meta"><span class="mem-src">${esc(f.source)}</span> · ${esc(f.timestamp)}</div>
+      <button class="mem-del" onclick="deleteMemory(${i+1})" title="Remove">✕</button>
+    </div>
+  `).join('');
+}
+
+async function deleteMemory(idx) {
+  await fetch(`${API}/memory/${idx}`, { method:'DELETE' });
+  loadMemory();
+}
+
+async function clearMemory() {
+  if (!confirm('Wipe all learned facts?')) return;
+  await fetch(`${API}/memory`, { method:'DELETE' });
+  loadMemory();
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await fetch(`${API}/history`);
+    const d = await r.json();
+    const el = document.getElementById('hist-list');
+    if (!d.history || !d.history.length) {
+      el.innerHTML = '<div class="mem-empty">No conversation yet.</div>';
+      return;
+    }
+    el.innerHTML = d.history.slice(-20).map(m => `
+      <div class="hist-item">
+        <div class="hist-role">${m.role}</div>
+        <div>${esc(m.content.substring(0,120))}${m.content.length>120?'…':''}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function clearHistory() {
+  await fetch(`${API}/history`, { method:'DELETE' });
+  loadHistory();
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', ['memory','history'][i]===name));
+  document.getElementById('tab-memory').classList.toggle('hidden', name!=='memory');
+  document.getElementById('tab-history').classList.toggle('hidden', name!=='history');
+  if (name==='history') loadHistory();
+}
+
+// ── Chat helpers ───────────────────────────────────────────────────────────
+function hideWelcome() {
+  const w = document.getElementById('welcome');
+  if (w) w.remove();
+}
+
+function addUserBubble(text) {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'msg-group user';
+  div.innerHTML = `
+    <div class="msg-meta"><span>${timeNow()}</span><div class="msg-avatar avatar-u">R</div></div>
+    <div class="bubble user">${esc(text).replace(/\n/g,'<br>')}</div>
+  `;
+  wrap.appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function addTyping() {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'msg-group bot';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="msg-meta"><div class="msg-avatar avatar-m">M</div><span>Avira</span></div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  `;
+  wrap.appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+function addBotContainer() {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'msg-group bot';
+  div.innerHTML = `<div class="msg-meta"><div class="msg-avatar avatar-m">M</div><span>Avira</span><span>${timeNow()}</span></div>`;
+  wrap.appendChild(div);
+  return div;
+}
+
+function addTraceStep(container, step, thought, action, input) {
+  const cfg = TOOLS[action] || {icon:'⚙', label:action, cls:'tool-default'};
+  const id = `trace-${Date.now()}-${step}`;
+  const div = document.createElement('div');
+  div.className = 'react-trace';
+  div.innerHTML = `
+    <div class="trace-step" id="${id}">
+      <div class="trace-header" onclick="toggleTrace('${id}')">
+        <span class="trace-step-num">${step}</span>
+        <span class="trace-icon">${cfg.icon}</span>
+        <span class="trace-label"><span class="tool-chip ${cfg.cls}">${cfg.label}</span></span>
+        <span class="trace-toggle">▼</span>
+      </div>
+      <div class="trace-body" id="${id}-body">
+        <div class="trace-row"><div class="trace-key">Thought</div><div class="trace-val">${esc(thought)}</div></div>
+        <div class="trace-row"><div class="trace-key">Input</div><div class="trace-val">${esc(input)}</div></div>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  scrollBottom();
+  return id;
+}
+
+function addObservation(traceId, obs) {
+  const body = document.getElementById(`${traceId}-body`);
+  if (!body) return;
+  const row = document.createElement('div');
+  row.className = 'trace-row';
+  row.innerHTML = `<div class="trace-key">Observation</div><div class="trace-val">${esc(obs)}</div>`;
+  body.appendChild(row);
+}
+
+function toggleTrace(id) {
+  const body = document.getElementById(`${id}-body`);
+  const tog  = document.querySelector(`#${id} .trace-toggle`);
+  if (!body) return;
+  body.classList.toggle('open');
+  if (tog) tog.textContent = body.classList.contains('open') ? '▲' : '▼';
+}
+
+function addFinalAnswer(container, answer) {
+  const div = document.createElement('div');
+  div.className = 'bubble bot';
+  div.innerHTML = marked.parse(answer);
+  container.appendChild(div);
+  scrollBottom();
+}
+
+function addBlockedBubble(msg) {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'msg-group bot';
+  div.innerHTML = `
+    <div class="msg-meta"><div class="msg-avatar avatar-m">M</div><span>Avira</span></div>
+    <div class="bubble bot blocked">${esc(msg)}</div>
+  `;
+  wrap.appendChild(div);
+  scrollBottom();
+}
+
+function addLearnedNotice(fact) {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.style.cssText = 'text-align:center;margin:8px 0';
+  div.innerHTML = `<span style="font-size:12px;color:#F0A500;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.2);border-radius:20px;padding:4px 12px">📝 Learned: "${esc(fact)}"</span>`;
+  wrap.appendChild(div);
+  scrollBottom();
+}
+
+// ── Send message ───────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text  = input.value.trim();
+  if (!text || isThinking) return;
+
+  isThinking = true;
+  document.getElementById('send-btn').disabled = true;
+  hideWelcome();
+  input.value = '';
+  input.style.height = 'auto';
+
+  addUserBubble(text);
+  addTyping();
+
+  try {
+    const resp = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: text})
+    });
+
+    removeTyping();
+    const container = addBotContainer();
+    let currentTraceId = null;
+    let started = false;
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (ev.event === 'blocked') {
+          container.remove();
+          addBlockedBubble(ev.message);
+        }
+        else if (ev.event === 'learned') {
+          addLearnedNotice(ev.fact);
+          loadMemory();
+        }
+        else if (ev.event === 'thought') {
+          // will be merged with action
+        }
+        else if (ev.event === 'action') {
+          currentTraceId = addTraceStep(container, ev.step, '', ev.tool, ev.input);
+        }
+        else if (ev.event === 'observation') {
+          if (currentTraceId) addObservation(currentTraceId, ev.text);
+        }
+        else if (ev.event === 'finish') {
+          addFinalAnswer(container, ev.answer);
+          loadHistory();
+          loadMemory();
+        }
+      }
+    }
+  } catch(e) {
+    removeTyping();
+    const wrap = document.getElementById('chat-wrap');
+    const div = document.createElement('div');
+    div.className = 'msg-group bot';
+    div.innerHTML = `<div class="bubble bot blocked">⚠️ Could not reach server. Make sure it's running:<br/><code>uvicorn server:app --reload --port 8000</code></div>`;
+    wrap.appendChild(div);
+    scrollBottom();
+  }
+
+  isThinking = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('msg-input').focus();
+}
+
+function sendChip(el) { 
+  document.getElementById('msg-input').value = el.textContent;
+  sendMessage();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+function scrollBottom() {
+  const w = document.getElementById('chat-wrap');
+  w.scrollTop = w.scrollHeight;
+}
+function timeNow() {
+  return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+function esc(s='') {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+checkStatus();
+setInterval(checkStatus, 15000);
+document.getElementById('msg-input').focus();
+</script>
+</body>
+</html>
